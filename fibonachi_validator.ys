@@ -1,0 +1,395 @@
+irmovq stack, %rsp
+irmovq stack, %rbp
+
+main:
+    call Memory_reader  # Read number from array
+    rrmovq %rax, %rbx   
+    rrmovq %rax, %rsi   # Set values for multiplication
+    call square_number
+    
+    rrmovq %rdx, %rbx # Move number to be multiplied
+    call multiply_by_5
+    
+    # Save number + 4 to the stack
+    irmovq $4, %rdi
+    addq %rdi, %rdx
+    pushq %rdx
+    # Check if (number - 4) is a fibonachi sequence number
+    irmovq $8, %rdi
+    subq %rdi, %rdx
+    
+    call Fibonachi_test # Check if the number is a fibonachi number
+    call clear_registers # Clear registers
+    popq %rdx   # Pop (number + 4) if the previous number was not a fibonachi number
+    call Fibonachi_test
+    
+    # At this point neither of the numbers were a number of the fibonachi sequence
+    rrmovq %r9, %rax # Moves the input number to %rax as per specifications by the assignment
+    
+    halt
+
+Fibonachi_test:
+    # clear registers
+    irmovq $0, %rax
+    irmovq $0, %rbx
+    irmovq $0, %rdi
+    
+    rrmovq %rdx, %r12
+    call Squareroot
+    rrmovq %rdx, %r8
+    irmovq $0, %rdx
+    # RCX = squareroot result
+    rrmovq %rcx, %rbx   # Set multiplication values
+    rrmovq %rcx, %rsi   #
+    call square_number
+    subq %r8, %rdx      # Test if 0
+    je fibonacci_number_found
+    ret
+
+fibonacci_number_found:
+    call clear_registers
+    jmp main
+
+clear_registers:
+    irmovq $0, %rcx
+    irmovq $0, %rdx
+    irmovq $0, %rbx
+    irmovq $0, %rdi
+    irmovq $0, %r14
+    ret
+
+Memory_reader:
+    irmovq $0, %r8       # Set constant 0
+    irmovq $8, %r14      # Set constant 8
+    mrmovq (%r11),%rax   # Copies number from array
+    subq %r8, %rax       # End program if the number is zero, as per assignment specifications
+    je the_input_number_is_zero
+    addq %r14, %r11      # Add 8 to the memory reader register, so it reads the next number.
+    rrmovq %rax, %r9
+    ret
+
+the_input_number_is_zero:
+    halt
+    
+multiply_by_5:
+    call multiply_by_5_prep
+    ret
+
+square_number:
+    call multiplication_prep
+    ret
+
+multiplication_prep:
+    irmovq $0, %rdx
+    irmovq $1, %rdi
+    rrmovq %rbx, %rbx # Number to be multiplied
+    rrmovq %rsi, %rsi # Number that is multiplied with
+    jmp multiplication_loop
+        multiplication_loop:
+            addq %rbx, %rdx
+            subq %rdi, %rsi
+            jle return_function
+            jmp multiplication_loop
+
+multiply_by_5_prep:
+    irmovq $0, %rdx
+    irmovq $1, %rdi
+    irmovq $5, %rsi
+    jmp multiplication_loop
+
+division:
+    call Jakolasku_1048576_prep
+    ret
+
+Squareroot:
+    irmovq $16777216, %r8  #bit numero 2^24
+    call Squareroot_start
+    ret
+
+Squareroot_start:
+    call set_bit_to_be_divided
+    call Bit_shift_right2
+    rrmovq %rax, %r8
+    # "Bit" is of correct size
+    # Continue to the second loop of the C algorhythm
+    jmp Sqrt_jne_bit0
+
+Sqrt_jne_bit0:
+    # Empty r10
+    irmovq $0, %r10
+    
+    #if bit is 0, then it ends the program
+    subq %r13, %r8
+    je return_function
+
+    # bit is non zero at this point
+    # if num >= res + bit
+    # r10 = res + bit
+    addq %rcx, %r10
+    addq %r8, %r10
+    # test >=
+    subq %r10, %r12
+    jge Sqrt_if_num_jge_sum_of_res_and_bit
+    addq %r10, %r12 # Add back after test
+    
+    call set_result_to_be_divided
+    call Bit_shift_right1
+    # Save result
+    rrmovq %rax, %rcx
+    call set_bit_to_be_divided
+    call Bit_shift_right2
+    # save result
+    rrmovq %rax, %r8
+    jmp Sqrt_jne_bit0
+
+Sqrt_if_num_jge_sum_of_res_and_bit:
+    # Add back after test
+    addq %r10, %r12
+
+    # num -= res + bit;
+    subq %rcx, %r12 # numero -= result
+    subq %r8, %r12 # numero -= bit
+
+    # res = (res >> 1) + bit
+    call set_result_to_be_divided
+    call Bit_shift_right1
+    rrmovq %rax, %rcx
+    addq %r8, %rcx
+    call set_bit_to_be_divided
+    call Bit_shift_right2
+    rrmovq %rax, %r8
+    jmp Sqrt_jne_bit0
+
+set_bit_to_be_divided:
+    # Set number to correct register for division
+    rrmovq %r8, %rbx
+    ret
+
+set_result_to_be_divided:
+    # Set number to correct register for division
+    rrmovq %rcx, %rbx
+    ret
+
+Bit_shift_right2:
+    # Divide number by 2, 2 times
+    irmovq $0, %rax # result
+    call Jakolasku
+    # Save result temporarily
+    rrmovq %rax, %rbx
+    irmovq $0, %rax # result
+    call Jakolasku
+    ret
+
+Bit_shift_right1:
+    irmovq $0, %rax # result
+    call Jakolasku
+    ret
+
+return_function:
+    ret
+
+
+
+###
+# Division, that starts by dividing with 2^20 -> 2^16 -> ... -> 2
+# Prep functions prepare the correct values for dividing by a smaller number
+###
+
+Division_1048576_prep:
+    #irmovq $65536, %r14
+    #addq %r14, %rbx
+    irmovq $1048576, %rsi
+    irmovq $524288, %rdi
+    jmp Division_1048576
+        Division_1048576:
+            subq %rsi, %rbx # Test if 0 or negative
+            jl Division_65536_prep
+            addq %rdi, %rax # incerement counter
+            jmp Division_1048576
+Division_65536_prep:
+    irmovq $1048576, %r14
+    addq %r14, %rbx
+    irmovq $65536, %rsi
+    irmovq $32768, %rdi
+    jmp Division_65536
+        Division_65536:
+            subq %rsi, %rbx # test if 0 or negative
+            jl Division_32768_prep
+            addq %rdi, %rax # increment counter
+            jmp Division_65536
+Division_32768_prep:
+    irmovq $65536, %r14
+    addq %r14, %rbx
+    irmovq $32768, %rsi
+    irmovq $16384, %rdi
+    jmp Division_32768
+        Division_32768:
+            subq %rsi, %rbx # test if 0 or negative
+            jl Division_4096_prep
+            addq %rdi, %rax # increment counter
+            jmp Division_32768
+Division_4096_prep:
+    irmovq $32768, %r14
+    addq %r14, %rbx
+    irmovq $4096, %rsi
+    irmovq $2048, %rdi
+    jmp Division_4096
+        Division_4096:
+            subq %rsi, %rbx # test if 0 or negative
+            jl Division_2048_prep
+            addq %rdi, %rax #lisää 2148 counteriin
+            jmp Division_4096
+Division_2048_prep:
+    irmovq $4096, %r14
+    addq %r14, %rbx
+    #tarkistetaan onko jaettava 0
+    subq %r13, %rbx # test if 0 or negative
+    jle return_function
+    irmovq $2048, %rsi
+    irmovq $1024, %rdi
+    jmp Division_2048
+        Division_2048:
+            subq %rsi, %rbx # test if 0 or negative
+            jl Division_1024_prep
+            addq %rdi, %rax #lisää 1024 counteriin
+            jmp Division_2048
+Division_1024_prep:
+    irmovq $2048, %r14
+    addq %r14, %rbx
+        #tarkistetaan onko jaettava 0
+    subq %r13, %rbx # test if 0 or negative
+    jle return_function
+    irmovq $1024, %rsi
+    irmovq $512, %rdi
+    jmp Division_1024
+        Division_1024:
+            subq %rsi, %rbx # test if 0 or negative
+            jl Division_512_prep
+            addq %rdi, %rax #lisää 512 counteriin
+            jmp Division_1024
+Division_512_prep:
+    irmovq $1024, %r14
+    addq %r14, %rbx
+        #tarkistetaan onko jaettava 0
+    subq %r13, %rbx # test if 0 or negative
+    jle return_function
+    irmovq $512, %rsi
+    irmovq $256, %rdi
+    jmp Division_512
+        Division_512:
+            subq %rsi, %rbx # test if 0 or negative
+            jl Division_256_prep
+            addq %rdi, %rax #lisää 256 counteriin
+            jmp Division_512
+Division_256_prep:
+    irmovq $512, %r14
+    addq %r14, %rbx
+        #tarkistetaan onko jaettava 0
+    subq %r13, %rbx # test if 0 or negative
+    jle return_function
+    irmovq $256, %rsi
+    irmovq $128, %rdi
+    jmp Division_256
+        Division_256:
+            subq %rsi, %rbx # test if 0 or negative
+            jl Division_128_prep
+            addq %rdi, %rax #lisää 128 counteriin
+            jmp Division_256
+Division_128_prep:
+    irmovq $256, %r14
+    addq %r14, %rbx
+        #tarkistetaan onko jaettava 0
+    subq %r13, %rbx # test if 0 or negative
+    jle return_function
+    irmovq $128, %rsi
+    irmovq $64, %rdi
+    jmp Division_128
+        Division_128:
+            subq %rsi, %rbx # test if 0 or negative
+            jl Division_64_prep
+            addq %rdi, %rax #lisää 64 counteriin
+            jmp Division_128
+Division_64_prep:
+    irmovq $128, %r14
+    addq %r14, %rbx
+    subq %r13, %rbx # test if 0 or negative
+    jle return_function
+    irmovq $64, %rsi
+    irmovq $32, %rdi
+    jmp Division_64
+        Division_64:
+            subq %rsi, %rbx # test if 0 or negative
+            jl Division_32_prep
+            addq %rdi, %rax #lisää 32 counteriin
+            jmp Division_64
+Division_32_prep:
+    irmovq $64, %r14
+    addq %r14, %rbx
+    subq %r13, %rbx # test if 0 or negative
+    jle return_function
+    irmovq $32, %rsi
+    irmovq $16, %rdi
+    jmp Division_32
+        Division_32:
+            subq %rsi, %rbx # test if 0 or negative
+            jl Division_16_prep
+            addq %rdi, %rax #lisää 16 counteriin
+            jmp Division_32
+Division_16_prep:
+    irmovq $32, %r14
+    addq %r14, %rbx
+        #tarkistetaan onko jaettava 0
+    subq %r13, %rbx # test if 0 or negative
+    jle return_function
+    irmovq $16, %rsi
+    irmovq $8, %rdi
+    jmp Division_16
+        Division_16:
+            subq %rsi, %rbx # test if 0 or negative
+            jl Division_8_prep
+            addq %rdi, %rax #lisää 8 counteriin
+            jmp Division_16
+Division_8_prep:
+    irmovq $16, %r14
+    addq %r14, %rbx
+    subq %r13, %rbx # test if 0 or negative
+    jle return_function
+    irmovq $8, %rsi
+    irmovq $4, %rdi
+    jmp Division_8
+        Division_8:
+            subq %rsi, %rbx # test if 0 or negative
+            jl Division_4_prep
+            addq %rdi, %rax #lisää 4 counteriin
+            jmp Division_8
+Division_4_prep:
+    irmovq $8, %r14
+    addq %r14, %rbx
+    subq %r13, %rbx # test if 0 or negative
+    jle return_function
+    irmovq $4, %rsi
+    irmovq $2, %rdi
+    jmp Division_4
+        Division_4:
+            subq %rsi, %rbx # test if 0 or negative
+            jl Division_2_prep
+            addq %rdi, %rax #lisää 2 counteriin
+            jmp Division_4
+Division_2_prep:
+    irmovq $4, %r14
+    addq %r14, %rbx
+    subq %r13, %rbx # test if 0 or negative
+    jle return_function
+    irmovq $2, %rsi
+    irmovq $1, %rdi
+    jmp Division_2
+        Division_2:
+            subq %rsi, %rbx # test if 0 or negative
+            jl return_function
+            addq %rdi, %rax #lisää 1 counteriin
+            jmp Division_2
+
+.pos 0x800
+stack:
+.pos 0x900
+array:
